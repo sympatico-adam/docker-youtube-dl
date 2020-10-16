@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+
+import errno
+import os
+import re
+import shutil
+import subprocess
+from subprocess import check_output
+from pathlib import Path
+from shutil import copyfile
+import signal
+
+import argparse
+
+#EXECPATH = os.path.dirname(os.path.abspath(__file__))
+EXECPATH = '/videos'
+current_subprocs = set()
+shutdown = False                                               
+
+class VideoEdit(object):
+
+    @staticmethod
+    def dl(cmdline_args):
+        url = cmdline_args.url
+        if cmdline_args.video_format is not None:
+            video_format = cmdline_args.video_format
+        else:
+            video_format = "mp4"
+        if cmdline_args.out_file is not None:
+            out_file = f'-o {cmdline_args.out_file}'
+        else:
+            out_file = ''
+        user_agent = f'\"cmdline_args.user_agent\"'
+        command = f'youtube-dl -v --recode-video {video_format} --user-agent {user_agent} --prefer-ffmpeg -f bestvideo+bestaudio --fixup detect_or_warn --rm-cache-dir --no-playlist --print-traffic --no-call-home {url}'
+        print(command)
+        VideoEdit.__run_command(command)
+
+    @staticmethod
+    def edit(cmdline_args):
+        in_file = f'{cmdline_args.in_file}'
+        out_file = f'{cmdline_args.out_file}'
+        start_time = cmdline_args.start_time
+        end_time = cmdline_args.end_time
+        os.chdir(EXECPATH)
+        command = f'ffmpeg -i {in_file} -ss {start_time} -to {end_time} -c copy {out_file}'
+        VideoEdit.__run_command(command)
+
+    @staticmethod
+    def __run_command(command, timeout=None):
+        if command != '':
+            process = subprocess.Popen(command.split())
+            current_subprocs.add(process)
+            try:
+                return process.communicate(timeout)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                return process.communicate()
+            finally:
+                current_subprocs.remove(process)
+        else:
+            return None
+
+    @staticmethod
+    def __rm_path(path):
+        apath = os.path.abspath(path)
+        print(f'Removing path {apath}...')
+        if os.path.exists(apath):
+            shutil.rmtree(apath)
+
+    @staticmethod
+    def __rm_files(filepath):
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+            print("Removed existing files...")
+        else:
+            print("File doesn't exists!")
+
+    @staticmethod
+    def __mkdir(path):
+        if not os.path.isdir(path) or not os.path.exists(path):
+            os.mkdir(path)
+        return path
+
+
+def handle_signal(signum, frame):
+    # send signal recieved to subprocesses
+    global shutdown
+    shutdown = True
+    for proc in current_subprocs:
+        if proc.poll() is None:
+            proc.send_signal(signum)
+
+
+signal.signal(signal.SIGINT, handle_signal)
+signal.signal(signal.SIGTERM, handle_signal)
+
+arg_parser = argparse.ArgumentParser(
+    description='Download and locally edit hosted video content.')
+
+arg_parser.add_argument('--url',
+                        type=str,
+                        help='remote video url')
+arg_parser.add_argument('--video-format',
+                        choices=['mp4', 'flv', 'ogg', 'webm', 'mkv', 'avi'],
+                        help='output video format')
+arg_parser.add_argument('--user-agent',
+                        type=str,
+                        default='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.74 Safari/537.36 Edg/79.0.309.43',
+                        help='downloader user-agent')
+arg_parser.add_argument('--start-time',
+                        type=str,
+                        help='video clip start time')
+arg_parser.add_argument('--end-time',
+                        type=str,
+                        help='video clip end time')
+arg_parser.add_argument('--in-file',
+                        type=str,
+                        help='editor input video file')
+arg_parser.add_argument('--out-file',
+                        type=str,
+                        help='editor output video file')
+arg_parser.add_argument('operation',
+                        choices=['dl', 'edit'],
+                        help='video editor and downloader commands')
+
+if __name__ == '__main__':
+    cmdline_args = arg_parser.parse_args()
+    cmd = cmdline_args.operation
+    if cmd == 'dl':
+        VideoEdit.dl(cmdline_args)
+    if cmd == 'edit':
+        VideoEdit.edit(cmdline_args)

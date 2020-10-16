@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-mkdir -p ./video-downloads
+mkdir -p ./videos
 
-docker run --rm --name youtube-dl -it -v ${PWD}/video-downloads:/youtube-dl:rw sympatico/youtube-dl $@
+docker run --rm --name youtube-dl -v ${PWD}/videos:/videos:rw sympatico/youtube-dl $@
