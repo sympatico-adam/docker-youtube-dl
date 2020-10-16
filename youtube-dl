@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+mkdir -p ./video-downloads
+
+docker run --rm --name youtube-dl -it -v ${PWD}/video-downloads:/youtube-dl:rw sympatico/youtube-dl $@
