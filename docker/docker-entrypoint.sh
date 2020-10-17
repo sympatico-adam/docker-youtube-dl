@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-exec gosu downloader video-edit $@
+echo -e "Executing: ./youtube-dl ${@}"
+
+exec gosu downloader video-edit "$@"

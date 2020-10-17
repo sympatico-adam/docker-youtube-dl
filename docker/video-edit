@@ -19,27 +19,27 @@ class VideoEdit(object):
     @staticmethod
     def dl(cmdline_args):
         command = ['youtube-dl', '-v', '--prefer-ffmpeg', '-f', 'bestvideo+bestaudio', '--fixup', 'detect_or_warn', '--rm-cache-dir', '--no-playlist', '--print-traffic', '--no-call-home']
-        user_agent = f'\"{cmdline_args.user_agent}\"'
-        video_format = cmdline_args.video_format
-        if cmdline_args.out_file is not None:
+        video_format = cmdline_args.format
+        if cmdline_args.out_file_name is not None:
             command.append('-o')
-            command.append(cmdline_args.out_file)
+            command.append(cmdline_args.out_file_name)
         if cmdline_args.url is not None:
             url = cmdline_args.url
         else:
             exit(2)
+        user_agent = cmdline_args.user_agent
         command.append('--recode-video')
         command.append(video_format)
         command.append('--user-agent')
-        command.append(user_agent)
+        command.append(f"'{user_agent}'")
         command.append(url)
         VideoEdit.__run_command(command)
 
     @staticmethod
     def edit(cmdline_args):
         command = ['ffmpeg', '-c copy']
-        in_file = f'\"{cmdline_args.in_file}\"'
-        out_file = f'\"{cmdline_args.out_file}\"'
+        in_file = f'\"{cmdline_args.in_file_name}\"'
+        out_file = f'\"{cmdline_args.out_file_name}\"'
         start_time = f'\"cmdline_args.start_time\"'
         end_time = f'\"cmdline_args.end_time\"'
         command.append('-i')
@@ -91,7 +91,7 @@ arg_parser = argparse.ArgumentParser(
 arg_parser.add_argument('--url',
                         type=str,
                         help='remote video url')
-arg_parser.add_argument('--video_format',
+arg_parser.add_argument('--format',
                         choices=['mp4', 'flv', 'ogg', 'webm', 'mkv', 'avi'],
                         default='mp4',
                         help='output video format')
@@ -105,10 +105,10 @@ arg_parser.add_argument('--start_time',
 arg_parser.add_argument('--end_time',
                         type=str,
                         help='video clip end time')
-arg_parser.add_argument('--in_file',
+arg_parser.add_argument('--in_file_name',
                         type=str,
-                        help='editor input video file')
-arg_parser.add_argument('--out_file',
+                        help='editor input video file name path')
+arg_parser.add_argument('--out_file_name',
                         type=str,
                         help='editor output video file')
 arg_parser.add_argument('operation',
