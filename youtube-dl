@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-mkdir -p ./videos
+[[ ! -e ./videos ]] && mkdir -p ./videos
 
-docker run --rm --name youtube-dl -v ${PWD}/videos:/videos:rw sympatico/youtube-dl $@
+set -f
+
+docker run --rm --name youtube-dl -it -v ${PWD}/videos:/videos:rw sympatico/youtube-dl "$@"
+

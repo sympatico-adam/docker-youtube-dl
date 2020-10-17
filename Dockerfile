@@ -1,6 +1,6 @@
 FROM debian:bullseye-slim
 
-RUN useradd -r -u 6669 -M -U youtube-dl
+RUN set -eux
 
 RUN apt-get update && apt-get upgrade -y && \
 	apt-get install -y --no-install-recommends \
@@ -9,21 +9,26 @@ RUN apt-get update && apt-get upgrade -y && \
 		youtube-dl \
 		ffmpeg \
 		python3 \
-		ca-certificates
+		python3-pip \
+		ca-certificates \
+		gosu
 
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN pip install dockerpty
 
-COPY docker/video-edit /usr/local/bin/video-edit
+RUN adduser --system --shell /bin/bash --no-create-home downloader
 
-RUN chmod 0755 /usr/local/bin/*
+COPY docker/docker-entrypoint.sh /usr/local/bin/
+
+COPY docker/video-edit /usr/local/bin/
+
+RUN chmod 755 /usr/local/bin/video-edit /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir /videos
 
-RUN chown youtube-dl /videos
-
-USER youtube-dl
+RUN chown downloader /videos
 
 WORKDIR /videos
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 
+CMD ["--help"]

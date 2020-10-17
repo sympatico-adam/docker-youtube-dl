@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-video-edit $@
+exec gosu downloader video-edit $@
