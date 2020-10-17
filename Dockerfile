@@ -1,19 +1,14 @@
 FROM debian:bullseye-slim
 
-RUN set -eux
-
 RUN apt-get update && apt-get upgrade -y && \
 	apt-get install -y --no-install-recommends \
-		ffmpeg \
+		apt-utils \
 		wget \
 		youtube-dl \
 		ffmpeg \
 		python3 \
 		python3-pip \
-		ca-certificates \
-		gosu
-
-RUN pip install dockerpty
+		ca-certificates
 
 RUN adduser --system --shell /bin/bash --no-create-home downloader
 

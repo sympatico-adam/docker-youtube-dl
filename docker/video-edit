@@ -1,71 +1,69 @@
 #!/usr/bin/python3
 
-import pty
+import urllib.parse as ul
 import os
 import sys
 import select
-from subprocess import check_output, PIPE, Popen, TimeoutExpired
 import signal
 import argparse
+import re
+import subprocess
+from subprocess import check_output, PIPE, Popen, TimeoutExpired
 
 #EXECPATH = os.path.dirname(os.path.abspath(__file__))
-EXECPATH = '/videos'
+EXECPATH = os.path.abspath('/videos')
+os.chdir(EXECPATH)
 RUNNING_PROCS = set()
 SHUTDOWN = False                                               
-PTY, TTY = pty.openpty()
 
 class VideoEdit(object):
 
     @staticmethod
     def dl(cmdline_args):
-        command = ['youtube-dl', '-v', '--prefer-ffmpeg', '-f', 'bestvideo+bestaudio', '--fixup', 'detect_or_warn', '--rm-cache-dir', '--no-playlist', '--print-traffic', '--no-call-home']
-        user_agent = f'\"{cmdline_args.user_agent}\"'
-        video_format = cmdline_args.video_format
-        if cmdline_args.out_file is not None:
-            command.append('-o')
-            command.append(cmdline_args.out_file)
         if cmdline_args.url is not None:
-            url = cmdline_args.url
+            url = ul.urlparse(f"{cmdline_args.url}").geturl()
         else:
             exit(2)
-        command.append('--recode-video')
-        command.append(video_format)
-        command.append('--user-agent')
-        command.append(user_agent)
-        command.append(url)
-        VideoEdit.__run_command(command)
+        dl_command = ['youtube-dl', '--prefer-ffmpeg', '-f', 'bestvideo+bestaudio', '--fixup', 'detect_or_warn', '--no-cache-dir', '--no-playlist', '--print-traffic', '--no-call-home']
+        user_agent = re.escape(cmdline_args.user_agent)
+        output_file = ""
+        if cmdline_args.format is not None:
+            dl_command.extend(['--recode-video', cmdline_args.format])
+        if cmdline_args.out_file_name is not None:
+            output_file = cmdline_args.out_file_name
+        else:
+            id_command = ['youtube-dl', '--no-cache-dir', '--get-id', '--no-call-home', url]
+            output_file = VideoEdit.__run_command(id_command)
+        dl_command.extend(['-o', output_file, '--user-agent', user_agent, url])
+        VideoEdit.__run_command(dl_command)
+        print(f'\n~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~\nvideo saved as {output_file}\n~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')
 
     @staticmethod
     def edit(cmdline_args):
-        command = ['ffmpeg', '-c copy']
-        in_file = f'\"{cmdline_args.in_file}\"'
-        out_file = f'\"{cmdline_args.out_file}\"'
-        start_time = f'\"cmdline_args.start_time\"'
-        end_time = f'\"cmdline_args.end_time\"'
-        command.append('-i')
-        command.append(in_file)
-        command.append('-ss')
-        command.append(start_time)
-        command.append('-to')
-        command.append(end_time)
-        command.append(out_file)
-        os.chdir(EXECPATH)
+        in_file = os.path.abspath(f'{EXECPATH}/{cmdline_args.in_file_name}')
+        out_file = cmdline_args.out_file_name
+        start_time = re.escape(cmdline_args.start_time)
+        end_time = re.escape(cmdline_args.end_time)
+        command = ['ffmpeg', '-i', in_file, '-ss', start_time, '-to', end_time, '-c', 'copy', out_file]
         VideoEdit.__run_command(command)
 
     @staticmethod
     def __run_command(command, timeout=0):
+        res = None
         if command != '':
-            process = Popen(command)
+            print('executing: ', ' '.join(command))
+            process = Popen(command, stdout=PIPE, universal_newlines=True)
             RUNNING_PROCS.add(process)
             try:
-                return process.communicate()
+                res = process.communicate()[0].strip()
+                print(f'Result: {res}')
             except TimeoutExpired:
                 process.kill()
-                return process.communicate()
+                _, err = process.communicate()
+                exit(err)
             finally:
                 RUNNING_PROCS.remove(process)
-        else:
-            return None
+        return res
 
     @staticmethod
     def __mkdir(path):
@@ -91,9 +89,8 @@ arg_parser = argparse.ArgumentParser(
 arg_parser.add_argument('--url',
                         type=str,
                         help='remote video url')
-arg_parser.add_argument('--video_format',
+arg_parser.add_argument('--format',
                         choices=['mp4', 'flv', 'ogg', 'webm', 'mkv', 'avi'],
-                        default='mp4',
                         help='output video format')
 arg_parser.add_argument('--user_agent',
                         type=str,
@@ -105,10 +102,10 @@ arg_parser.add_argument('--start_time',
 arg_parser.add_argument('--end_time',
                         type=str,
                         help='video clip end time')
-arg_parser.add_argument('--in_file',
+arg_parser.add_argument('--in_file_name',
                         type=str,
-                        help='editor input video file')
-arg_parser.add_argument('--out_file',
+                        help='editor input video file name path')
+arg_parser.add_argument('--out_file_name',
                         type=str,
                         help='editor output video file')
 arg_parser.add_argument('operation',
